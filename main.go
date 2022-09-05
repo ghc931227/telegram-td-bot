@@ -285,12 +285,12 @@ func onMessage(entities tg.Entities, messageUpdate message.AnswerableMessageUpda
 func startTaskQueue() {
 	curThreadNum = new(AtomicInt)
 	for {
+		runningTasks := curThreadNum.Value()
+		waitingTasks := taskQueue.Len()
+		if time.Now().Second() == 0 {
+			consoleLog("Running tasks: " + strconv.Itoa(runningTasks) + ", Waiting tasks:" + strconv.Itoa(waitingTasks))
+		}
 		if taskQueueOpen {
-			runningTasks := curThreadNum.Value()
-			waitingTasks := taskQueue.Len()
-			if time.Now().Second() == 0 {
-				consoleLog("Running tasks: " + strconv.Itoa(runningTasks) + ", Waiting tasks:" + strconv.Itoa(waitingTasks))
-			}
 			if runningTasks < maxThreadNum {
 				downloadTask := taskQueue.Pop()
 				if downloadTask != nil {
