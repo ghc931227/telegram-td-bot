@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Run by commandline
-# nohup ./telegram-tg-bot -apiId 123456 -apiHash xxx -botToken xxx:xxx_xxx-x -saveDir ./ -proxyIp -proxyPort -proxyAuth -proxyPwd -onMessage true -onChannelMessage true -threadNum 3 > ./log.txt 2>&1 &
+# nohup ./telegram-td-bot -apiId 123456 -apiHash xxx -botToken xxx:xxx_xxx-x -saveDir ./ -proxyIp -proxyPort -proxyAuth -proxyPwd -onMessage true -onChannelMessage true -threadNum 3 > ./log.txt 2>&1 &
 
 export apiId=123456
 
@@ -26,4 +26,4 @@ export onChannelMessage=true
 export threadNum=3
 
 # Run
-nohup ./telegram-tg-bot > ./log.txt 2>&1 &
+nohup ./telegram-td-bot > ./log.txt 2>&1 &

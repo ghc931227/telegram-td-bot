@@ -1,7 +1,7 @@
 A Telegram bot for media download, using [github.com/gotd/td](https://github.com/gotd/td).
 ## Build
 ```
-go build -o telegram-tg-bot main.go object.go
+go build -o telegram-td-bot main.go object.go
 ```
 
 ## Usage

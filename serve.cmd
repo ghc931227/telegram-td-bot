@@ -1,7 +1,7 @@
 @echo off
 
 @REM Run by commandline
-@REM telegram-tg-bot.exe -apiId 123456 -apiHash xxx -botToken xxx:xxx_xxx-x -saveDir ./ -proxyIp -proxyPort -proxyAuth -proxyPwd -onMessage true -onChannelMessage true -threadNum 3
+@REM telegram-td-bot.exe -apiId 123456 -apiHash xxx -botToken xxx:xxx_xxx-x -saveDir ./ -proxyIp -proxyPort -proxyAuth -proxyPwd -onMessage true -onChannelMessage true -threadNum 3
 
 set apiId=123456
 
@@ -26,5 +26,5 @@ set onChannelMessage=true
 set threadNum=3
 
 @REM Run
-telegram-tg-bot.exe
+telegram-td-bot.exe
 
