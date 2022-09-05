@@ -1,4 +1,8 @@
 A Telegram bot for media download, using [github.com/gotd/td](https://github.com/gotd/td).
+## Build
+```
+go build -o telegram-tg-bot main.go object.go
+```
 
 ## Usage
 edit serve.sh or serve.cmd and just run it.
