@@ -234,7 +234,7 @@ func onMessage(entities tg.Entities, messageUpdate message.AnswerableMessageUpda
 			if textMsg == "/start" {
 				_, _ = sender.Reply(entities, messageUpdate).Text(
 					mainCtx,
-					"Telegram Download Bot\nCommands:\n/status\t\tshow running status\n/stop\t\tstop waiting tasks",
+					"Telegram Download Bot\nCommands:\n/status\t\tshow running status",
 				)
 			} else if textMsg == "/status" {
 				_, _ = sender.Reply(entities, messageUpdate).Text(
@@ -243,15 +243,6 @@ func onMessage(entities tg.Entities, messageUpdate message.AnswerableMessageUpda
 						"Running tasks: %s, Waiting Tasks: %s",
 						strconv.Itoa(curThreadNum.Value()),
 						strconv.Itoa(taskQueue.Len()),
-					),
-				)
-			} else if textMsg == "/stop" {
-				taskQueueOpen = false
-				_, _ = sender.Reply(entities, messageUpdate).Text(
-					mainCtx,
-					fmt.Sprintf(
-						"Running tasks: %s, Waiting tasks stoped",
-						strconv.Itoa(curThreadNum.Value()),
 					),
 				)
 			}
