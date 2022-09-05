@@ -106,7 +106,7 @@ func main() {
 				Password: proxyPwd,
 			}
 		}
-		sock5, _ := proxy.SOCKS5("tcp", "127.0.0.1:1085", auth, proxy.Direct)
+		sock5, _ := proxy.SOCKS5("tcp", proxyIp+":"+proxyPort, auth, proxy.Direct)
 		dc := sock5.(proxy.ContextDialer)
 		dialer = dc.DialContext
 	}
