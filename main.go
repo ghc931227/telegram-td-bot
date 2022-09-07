@@ -174,12 +174,12 @@ func listen(clientOption *ClientOption, ctx context.Context) error {
 
 	if clientOption.onMessage == "true" {
 		dispatcher.OnNewMessage(func(ctx context.Context, e tg.Entities, update *tg.UpdateNewMessage) error {
-			return onMessage(e, update, false)
+			return onMessage(e, update, true)
 		})
 	}
 	if clientOption.onChannelMessage == "true" {
 		dispatcher.OnNewChannelMessage(func(ctx context.Context, e tg.Entities, update *tg.UpdateNewChannelMessage) error {
-			return onMessage(e, update, true)
+			return onMessage(e, update, false)
 		})
 	}
 
@@ -223,12 +223,12 @@ func listen(clientOption *ClientOption, ctx context.Context) error {
 	})
 }
 
-func onMessage(entities tg.Entities, messageUpdate message.AnswerableMessageUpdate, channelMessage bool) error {
+func onMessage(entities tg.Entities, messageUpdate message.AnswerableMessageUpdate, botMessage bool) error {
 	msg, ok := messageUpdate.GetMessage().(*tg.Message)
 	if !ok {
 		return nil
 	}
-	if !channelMessage {
+	if botMessage {
 		textMsg := msg.Message
 		if textMsg != "" {
 			if textMsg == "/start" {
