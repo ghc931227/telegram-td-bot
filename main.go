@@ -378,7 +378,7 @@ func downloadFile(task *DownloadTask) bool {
 	var fileSize int64
 	var err error
 	if task.retryNum != 0 {
-		saveLog := fmt.Sprintf("Retry download [%s]: %s", task.retryNum, task.fineName)
+		saveLog := fmt.Sprintf("Retry download [%s]: %s", strconv.Itoa(task.retryNum), task.fineName)
 		consoleLog(saveLog)
 		_, _ = sender.Reply(task.entities, task.newMessage).Text(mainCtx, saveLog)
 	}
