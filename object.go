@@ -29,6 +29,7 @@ type DownloadTask struct {
 	document   *tg.Document
 	photo      *tg.Photo
 	fineName   string
+	retryNum   int
 }
 
 type AtomicInt struct {

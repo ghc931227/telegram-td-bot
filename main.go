@@ -296,7 +296,11 @@ func startTaskQueue() {
 				if downloadTask != nil {
 					go func() {
 						curThreadNum.Higher()
-						_ = downloadFile(downloadTask)
+						success := downloadFile(downloadTask)
+						for !success && downloadTask.retryNum < 3 {
+							downloadTask.retryNum += 1
+							success = downloadFile(downloadTask)
+						}
 						curThreadNum.Lower()
 					}()
 				}
@@ -364,12 +368,20 @@ func mime2ext(s string) string {
 	return res[0]
 }
 
-func downloadFile(task *DownloadTask) error {
+func downloadFile(task *DownloadTask) bool {
+	if task.document == nil && task.photo == nil {
+		return true
+	}
 	startTime := time.Now()
 	document := task.document
 	photo := task.photo
 	var fileSize int64
 	var err error
+	if task.retryNum != 0 {
+		saveLog := fmt.Sprintf("Retry download [%s]: %s", task.retryNum, task.fineName)
+		consoleLog(saveLog)
+		_, _ = sender.Reply(task.entities, task.newMessage).Text(mainCtx, saveLog)
+	}
 	if document != nil {
 		fileSize = document.Size
 		fileSizeStr := strconv.FormatFloat(float64(fileSize)/float64(1024)/float64(1024), 'f', 2, 64)
@@ -389,20 +401,20 @@ func downloadFile(task *DownloadTask) error {
 			FileReference: photo.GetFileReference(),
 			ThumbSize:     "y",
 		})
-
 		_, err = builder.ToPath(context.Background(), saveDir+task.fineName)
 	}
 	if err != nil {
 		saveLog := fmt.Sprintf("Download error: [%s] %s", task.fineName, err)
 		consoleLog(saveLog)
 		_, _ = sender.Reply(task.entities, task.newMessage).Text(mainCtx, saveLog)
+		return false
 	} else {
 		costTime := time.Now().Sub(startTime).Milliseconds() / 1000
 		saveLog := fmt.Sprintf("Download success: [%s], %s", task.fineName, getDownloadAnalyzation(costTime, fileSize))
 		consoleLog(saveLog)
 		_, _ = sender.Reply(task.entities, task.newMessage).Text(mainCtx, saveLog)
 	}
-	return err
+	return true
 }
 
 func getDownloadAnalyzation(costTime int64, fileSize int64) string {
