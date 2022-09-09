@@ -240,9 +240,9 @@ func onMessage(entities tg.Entities, messageUpdate message.AnswerableMessageUpda
 				_, _ = sender.Reply(entities, messageUpdate).Text(
 					mainCtx,
 					fmt.Sprintf(
-						"Running tasks: %s, Waiting Tasks: %s",
-						strconv.Itoa(curThreadNum.Value()),
-						strconv.Itoa(taskQueue.Len()),
+						"Running tasks: %d, Waiting Tasks: %d",
+						curThreadNum.Value(),
+						taskQueue.Len(),
 					),
 				)
 			}
@@ -378,7 +378,7 @@ func downloadFile(task *DownloadTask) bool {
 	var fileSize int64
 	var err error
 	if task.retryNum != 0 {
-		saveLog := fmt.Sprintf("Retry download [%s]: %s", strconv.Itoa(task.retryNum), task.fineName)
+		saveLog := fmt.Sprintf("Retry download [%d]: %s", task.retryNum, task.fineName)
 		consoleLog(saveLog)
 		_, _ = sender.Reply(task.entities, task.newMessage).Text(mainCtx, saveLog)
 	}
