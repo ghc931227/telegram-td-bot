@@ -172,14 +172,24 @@ func consoleLogn(s ...string) {
 func listen(clientOption *ClientOption, ctx context.Context) error {
 	dispatcher := tg.NewUpdateDispatcher()
 
-	if clientOption.onMessage == "true" {
-		dispatcher.OnNewMessage(func(ctx context.Context, e tg.Entities, update *tg.UpdateNewMessage) error {
-			return onMessage(e, update, true)
-		})
-	}
+	dispatcher.OnNewMessage(func(ctx context.Context, e tg.Entities, update *tg.UpdateNewMessage) error {
+		if checkUser(update, clientOption.userId) {
+			if onCommand(e, update) {
+				return nil
+			}
+			if clientOption.onMessage == "true" {
+				return onMessage(e, update)
+			}
+		}
+		return nil
+	})
+
 	if clientOption.onChannelMessage == "true" {
 		dispatcher.OnNewChannelMessage(func(ctx context.Context, e tg.Entities, update *tg.UpdateNewChannelMessage) error {
-			return onMessage(e, update, false)
+			if checkChannel(update, clientOption.channelId) {
+				return onMessage(e, update)
+			}
+			return nil
 		})
 	}
 
@@ -223,32 +233,109 @@ func listen(clientOption *ClientOption, ctx context.Context) error {
 	})
 }
 
-func onMessage(entities tg.Entities, messageUpdate message.AnswerableMessageUpdate, botMessage bool) error {
+func checkUser(update *tg.UpdateNewMessage, userId int64) bool {
+	if userId == 0 {
+		return true
+	}
+	msg, ok := update.GetMessage().(*tg.Message)
+	if !ok {
+		return false
+	}
+	if msg.PeerID.TypeName() == "peerUser" && msg.PeerID.(*tg.PeerUser).UserID == userId {
+		return true
+	}
+	return false
+}
+
+func checkChannel(update *tg.UpdateNewChannelMessage, channelId int64) bool {
+	if channelId == 0 {
+		return true
+	}
+	msg, ok := update.GetMessage().(*tg.Message)
+	if !ok {
+		return false
+	}
+	if msg.PeerID.TypeName() == "peerChannel" && msg.PeerID.(*tg.PeerChannel).ChannelID == channelId {
+		return true
+	}
+	return false
+}
+
+func onCommand(entities tg.Entities, update *tg.UpdateNewMessage) bool {
+	msg, ok := update.GetMessage().(*tg.Message)
+	if !ok {
+		return true
+	}
+	textMsg := msg.Message
+	switch textMsg {
+	case "":
+		return false
+	case "/start":
+		_, _ = sender.Reply(entities, update).Text(
+			mainCtx,
+			"Telegram Download Bot\nCommands:\n/status\t\tshow running status",
+		)
+		return true
+	case "/status":
+		_, _ = sender.Reply(entities, update).Text(
+			mainCtx,
+			fmt.Sprintf(
+				"Running tasks: %d, Waiting Tasks: %d",
+				curThreadNum.Value(),
+				taskQueue.Len(),
+			),
+		)
+		return true
+	default:
+		if strings.HasPrefix(textMsg, "/set ") {
+			configStr := strings.TrimPrefix(textMsg, "/set ")
+			config := strings.Split(configStr, " ")
+			if len(config) > 1 {
+				configField := config[0]
+				configValue := config[1]
+				switch configField {
+				case "maxThreadNum":
+					configIntValue, err := strconv.Atoi(configValue)
+					if err != nil {
+						_, _ = sender.Reply(entities, update).Text(mainCtx, "wrong param: "+configValue)
+					} else {
+						maxThreadNum = configIntValue
+					}
+					break
+				case "saveDir":
+					fi, err := os.Stat(configValue)
+					if err == nil && fi.IsDir() {
+						if !strings.HasSuffix(configValue, "/") {
+							configValue += "/"
+						}
+						saveDir = configValue
+					} else {
+						_, _ = sender.Reply(entities, update).Text(mainCtx, "wrong path: "+configValue)
+					}
+					break
+				case "run":
+					fi, err := os.Stat(configValue)
+					if err == nil && !fi.IsDir() {
+						// do something
+					} else {
+						_, _ = sender.Reply(entities, update).Text(mainCtx, "wrong path: "+configValue)
+					}
+					break
+				default:
+					return false
+				}
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func onMessage(entities tg.Entities, messageUpdate message.AnswerableMessageUpdate) error {
 	msg, ok := messageUpdate.GetMessage().(*tg.Message)
 	if !ok {
 		return nil
 	}
-	if botMessage {
-		textMsg := msg.Message
-		if textMsg != "" {
-			if textMsg == "/start" {
-				_, _ = sender.Reply(entities, messageUpdate).Text(
-					mainCtx,
-					"Telegram Download Bot\nCommands:\n/status\t\tshow running status",
-				)
-			} else if textMsg == "/status" {
-				_, _ = sender.Reply(entities, messageUpdate).Text(
-					mainCtx,
-					fmt.Sprintf(
-						"Running tasks: %d, Waiting Tasks: %d",
-						curThreadNum.Value(),
-						taskQueue.Len(),
-					),
-				)
-			}
-		}
-	}
-
 	document, gotDocument := getDocument(msg)
 	photo, gotPhoto := getPhoto(msg)
 	if !gotDocument && !gotPhoto {
@@ -257,7 +344,7 @@ func onMessage(entities tg.Entities, messageUpdate message.AnswerableMessageUpda
 
 	var filename string
 	if document != nil {
-		filename = "[" + strconv.Itoa(messageUpdate.GetMessage().GetID()) + "] " + getDocumentFileName(document)
+		filename = "[" + strconv.Itoa(msg.GetID()) + "] " + getDocumentFileName(document)
 		downloadTask := &DownloadTask{
 			document:   document,
 			photo:      nil,
@@ -268,7 +355,7 @@ func onMessage(entities tg.Entities, messageUpdate message.AnswerableMessageUpda
 		taskQueue.Push(downloadTask)
 	}
 	if photo != nil {
-		filename = "[" + strconv.Itoa(messageUpdate.GetMessage().GetID()) + "] " + getPhotoFileName(photo)
+		filename = "[" + strconv.Itoa(msg.GetID()) + "] " + getPhotoFileName(photo)
 		downloadTask := &DownloadTask{
 			document:   nil,
 			photo:      photo,
