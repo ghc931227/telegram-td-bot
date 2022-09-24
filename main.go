@@ -29,6 +29,7 @@ var (
 	api            *tg.Client
 	sender         *message.Sender
 	saveDir        string
+	savedSize      int64
 	mainDownloader *downloader.Downloader
 )
 
@@ -279,11 +280,7 @@ func onCommand(entities tg.Entities, update *tg.UpdateNewMessage) bool {
 	case "/status":
 		_, _ = sender.Reply(entities, update).Text(
 			mainCtx,
-			fmt.Sprintf(
-				"Running tasks: %d, Waiting Tasks: %d",
-				curThreadNum.Value(),
-				taskQueue.Len(),
-			),
+			getBotStatus(),
 		)
 		return true
 	default:
@@ -308,7 +305,10 @@ func onCommand(entities tg.Entities, update *tg.UpdateNewMessage) bool {
 						if !strings.HasSuffix(configValue, "/") {
 							configValue += "/"
 						}
-						saveDir = configValue
+						if saveDir != configValue {
+							saveDir = configValue
+							savedSize = 0
+						}
 					} else {
 						_, _ = sender.Reply(entities, update).Text(mainCtx, "wrong path: "+configValue)
 					}
@@ -373,9 +373,8 @@ func startTaskQueue() {
 	curThreadNum = new(AtomicInt)
 	for {
 		runningTasks := curThreadNum.Value()
-		waitingTasks := taskQueue.Len()
 		if time.Now().Second() == 0 {
-			consoleLog("Running tasks: " + strconv.Itoa(runningTasks) + ", Waiting tasks:" + strconv.Itoa(waitingTasks))
+			consoleLog(getBotStatus())
 		}
 		if taskQueueOpen {
 			if runningTasks < maxThreadNum {
@@ -496,6 +495,7 @@ func downloadFile(task *DownloadTask) bool {
 		_, _ = sender.Reply(task.entities, task.newMessage).Text(mainCtx, saveLog)
 		return false
 	} else {
+		savedSize += fileSize
 		costTime := time.Now().Sub(startTime).Milliseconds() / 1000
 		saveLog := fmt.Sprintf("Download success: [%s], %s", task.fineName, getDownloadAnalyzation(costTime, fileSize))
 		consoleLog(saveLog)
@@ -516,6 +516,15 @@ func getDownloadAnalyzation(costTime int64, fileSize int64) string {
 		return fmt.Sprintf("Cost: %s", costTimeStr)
 	}
 	downloadSpeed := fileSize / costTime
-	downloadSpeedStr := strconv.FormatFloat(float64(downloadSpeed)/float64(1024)/float64(1024), 'f', 2, 64)
+	downloadSpeedStr := strconv.FormatFloat(float64(downloadSpeed)/float64(1024*1024), 'f', 2, 64)
 	return fmt.Sprintf("Cost: %s, Speed: %s mb/s", costTimeStr, downloadSpeedStr)
+}
+
+func getBotStatus() string {
+	return fmt.Sprintf(
+		"Running tasks: %d, Waiting tasks: %d, %s GB downloaded.",
+		curThreadNum.Value(),
+		taskQueue.Len(),
+		strconv.FormatFloat(float64(savedSize)/float64(1024*1024*1024), 'f', 2, 64),
+	)
 }
