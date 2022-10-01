@@ -22,6 +22,7 @@ import (
 
 var (
 	taskQueue      *Queue
+	errorTaskQueue *Queue
 	taskQueueOpen  = true
 	curThreadNum   *AtomicInt
 	maxThreadNum   int
@@ -212,6 +213,7 @@ func listen(clientOption *ClientOption, ctx context.Context) error {
 	saveDir = clientOption.saveDir
 	maxThreadNum = clientOption.threadNum
 	taskQueue = new(Queue)
+	errorTaskQueue = new(Queue)
 
 	consoleLog("Starting service")
 	return client.Run(ctx, func(ctx context.Context) error {
@@ -282,6 +284,21 @@ func onCommand(entities tg.Entities, update *tg.UpdateNewMessage) bool {
 			mainCtx,
 			getBotStatus(),
 		)
+		return true
+	case "/retry":
+		for {
+			task := errorTaskQueue.Pop()
+			if task == nil {
+				break
+			}
+			taskQueue.Push(task)
+		}
+		return true
+	case "/pause":
+		taskQueueOpen = false
+		return true
+	case "/resume":
+		taskQueueOpen = true
 		return true
 	default:
 		if strings.HasPrefix(textMsg, "/set ") {
@@ -388,6 +405,9 @@ func startTaskQueue() {
 							success = downloadFile(downloadTask)
 						}
 						curThreadNum.Lower()
+						if !success {
+							errorTaskQueue.Push(downloadTask)
+						}
 					}()
 				}
 			}
@@ -492,7 +512,9 @@ func downloadFile(task *DownloadTask) bool {
 	if err != nil {
 		saveLog := fmt.Sprintf("Download error: [%s] %s", task.fineName, err)
 		consoleLog(saveLog)
-		_, _ = sender.Reply(task.entities, task.newMessage).Text(mainCtx, saveLog)
+		if task.retryNum >= 3 {
+			_, _ = sender.Reply(task.entities, task.newMessage).Text(mainCtx, saveLog)
+		}
 		return false
 	} else {
 		savedSize += fileSize
@@ -521,10 +543,14 @@ func getDownloadAnalyzation(costTime int64, fileSize int64) string {
 }
 
 func getBotStatus() string {
+	if !taskQueueOpen {
+		return "Paused"
+	}
 	return fmt.Sprintf(
-		"Running tasks: %d, Waiting tasks: %d, %s GB downloaded.",
+		"Running tasks: %d, Waiting tasks: %d, Error tasks %d, %s GB downloaded.",
 		curThreadNum.Value(),
 		taskQueue.Len(),
+		errorTaskQueue.Len(),
 		strconv.FormatFloat(float64(savedSize)/float64(1024*1024*1024), 'f', 2, 64),
 	)
 }
