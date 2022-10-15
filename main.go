@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
@@ -9,7 +10,9 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/net/proxy"
 	"os"
+	"os/exec"
 	"os/user"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -286,6 +289,7 @@ func onCommand(entities tg.Entities, update *tg.UpdateNewMessage) bool {
 		)
 		return true
 	case "/retry":
+		taskQueueOpen = false
 		for {
 			task := errorTaskQueue.Pop()
 			if task == nil {
@@ -293,6 +297,7 @@ func onCommand(entities tg.Entities, update *tg.UpdateNewMessage) bool {
 			}
 			taskQueue.Push(task)
 		}
+		taskQueueOpen = true
 		return true
 	case "/pause":
 		taskQueueOpen = false
@@ -330,16 +335,42 @@ func onCommand(entities tg.Entities, update *tg.UpdateNewMessage) bool {
 						_, _ = sender.Reply(entities, update).Text(mainCtx, "wrong path: "+configValue)
 					}
 					break
-				case "run":
-					fi, err := os.Stat(configValue)
-					if err == nil && !fi.IsDir() {
-						// do something
-					} else {
-						_, _ = sender.Reply(entities, update).Text(mainCtx, "wrong path: "+configValue)
-					}
-					break
 				default:
 					return false
+				}
+				return true
+			}
+		}
+		if strings.HasPrefix(textMsg, "/run ") {
+			configStr := strings.TrimPrefix(textMsg, "/run ")
+			config := strings.Split(configStr, " ")
+			if len(config) >= 1 {
+				configValue := config[0]
+				fi, err := os.Stat(configValue)
+				if err == nil && !fi.IsDir() && (configValue == "run.sh" || configValue == "run.cmd") {
+					go func() {
+						curDir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+						curPath := strings.Replace(curDir, "\\", "/", -1)
+						cmd := exec.Command(curPath+"/"+configValue, config...)
+
+						var out bytes.Buffer
+						cmd.Stdout = &out
+
+						err = cmd.Run()
+
+						result := "success"
+						if err != nil {
+							result = "faild"
+							consoleLog(fmt.Sprintf("Command execute: %s", err))
+						}
+						reply := out.String()
+						if reply == "" {
+							reply = "no stdout return"
+						}
+						_, _ = sender.Reply(entities, update).Text(mainCtx, fmt.Sprintf("command execute %s:\n%s", result, out.String()))
+					}()
+				} else {
+					_, _ = sender.Reply(entities, update).Text(mainCtx, "wrong path: "+configValue)
 				}
 				return true
 			}
