@@ -319,6 +319,7 @@ func onCommand(entities tg.Entities, update *tg.UpdateNewMessage) bool {
 						_, _ = sender.Reply(entities, update).Text(mainCtx, "wrong param: "+configValue)
 					} else {
 						maxThreadNum = configIntValue
+						_, _ = sender.Reply(entities, update).Text(mainCtx, "maxThreadNum changed: "+configValue)
 					}
 					break
 				case "saveDir":
@@ -330,6 +331,7 @@ func onCommand(entities tg.Entities, update *tg.UpdateNewMessage) bool {
 						if saveDir != configValue {
 							saveDir = configValue
 							savedSize = 0
+							_, _ = sender.Reply(entities, update).Text(mainCtx, "saveDir path changed: "+configValue)
 						}
 					} else {
 						_, _ = sender.Reply(entities, update).Text(mainCtx, "wrong path: "+configValue)
